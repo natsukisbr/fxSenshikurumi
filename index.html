@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FX战士久留美 · 炒外汇模拟器</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --panel: #161b22;
+            --border: #30363d;
+            --text: #c9d1d9;
+            --green: #3fb950;
+            --red: #f85149;
+            --gold: #d2991d;
+            --blue: #58a6ff;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', 'Noto Sans SC', sans-serif;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .app { width: 100%; max-width: 1100px; }
+        header {
+            display: flex;
+            align-items: baseline;
+            gap: 16px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        header h1 { font-size: 1.6rem; color: var(--gold); letter-spacing: 1px; }
+        header .sub { font-size: 0.85rem; color: #8b949e; }
+        .status-bar {
+            display: flex;
+            gap: 20px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px 20px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .status-item .label { font-size: 0.75rem; color: #8b949e; }
+        .status-item .value { font-size: 1.2rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .value.positive { color: var(--green); }
+        .value.negative { color: var(--red); }
+        .leverage-control { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+        .leverage-control select {
+            background: #0d1117; color: var(--text); border: 1px solid var(--border);
+            border-radius: 6px; padding: 6px 10px; font-size: 0.9rem;
+        }
+        .market-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .pair-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px 16px;
+        }
+        .pair-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .pair-name { font-weight: 700; font-size: 1.05rem; letter-spacing: 0.5px; }
+        .pair-price { font-size: 1.35rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .price-up { color: var(--green); }
+        .price-down { color: var(--red); }
+        .pair-meta { font-size: 0.75rem; color: #8b949e; margin-bottom: 10px; }
+        .trade-buttons { display: flex; gap: 8px; }
+        .trade-buttons button {
+            flex: 1; padding: 8px 0; border: none; border-radius: 6px;
+            font-weight: 600; cursor: pointer; font-size: 0.9rem;
+            transition: opacity 0.15s;
+        }
+        .trade-buttons button:hover { opacity: 0.85; }
+        .btn-long { background: rgba(63, 185, 80, 0.2); color: var(--green); border: 1px solid var(--green); }
+        .btn-short { background: rgba(248, 81, 73, 0.2); color: var(--red); border: 1px solid var(--red); }
+        .positions-panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .positions-panel h2 { font-size: 1rem; margin-bottom: 10px; color: var(--blue); }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th, td { padding: 8px 6px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { color: #8b949e; font-weight: 500; font-size: 0.75rem; text-transform: uppercase; }
+        td.num { font-variant-numeric: tabular-nums; }
+        .close-btn {
+            background: transparent; border: 1px solid var(--border); color: var(--text);
+            padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 0.78rem;
+        }
+        .close-btn:hover { border-color: var(--red); color: var(--red); }
+        .empty-positions { color: #8b949e; font-size: 0.85rem; text-align: center; padding: 20px 0; }
+        .log-panel {
+            background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+            padding: 14px 16px; max-height: 180px; overflow-y: auto;
+            font-size: 0.8rem; line-height: 1.7;
+        }
+        .log-panel .log-entry { border-bottom: 1px solid #21262d; padding: 3px 0; }
+        .log-entry .time { color: #8b949e; margin-right: 8px; }
+        .log-entry.long { color: var(--green); }
+        .log-entry.short { color: var(--red); }
+        .log-entry.warn { color: var(--gold); }
+        .log-entry.liquidation { color: var(--red); font-weight: 700; }
+        .disclaimer {
+            margin-top: 20px; padding: 12px 16px; border: 1px dashed var(--border);
+            border-radius: 8px; font-size: 0.78rem; color: #8b949e; line-height: 1.6;
+        }
+        .disclaimer strong { color: var(--gold); }
+        @media (max-width: 600px) {
+            .status-bar { gap: 12px; }
+            .leverage-control { margin-left: 0; width: 100%; }
+            .market-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+    <header>
+        <h1>FX战士久留美 · 模拟炒汇</h1>
+        <span class="sub">All prices are simulated. 杠杆是双刃剑，ナンピン是爆仓的捷径。</span>
+    </header>
+
+    <div class="status-bar">
+        <div class="status-item">
+            <div class="label">净值 (JPY)</div>
+            <div class="value" id="equity">100,000</div>
+        </div>
+        <div class="status-item">
+            <div class="label">可用保证金</div>
+            <div class="value" id="free-margin">100,000</div>
+        </div>
+        <div class="status-item">
+            <div class="label">浮动盈亏</div>
+            <div class="value" id="floating-pnl">0</div>
+        </div>
+        <div class="leverage-control">
+            <label for="leverage">杠杆</label>
+            <select id="leverage">
+                <option value="1">1×</option>
+                <option value="5">5×</option>
+                <option value="10" selected>10×</option>
+                <option value="20">20×</option>
+                <option value="50">50×</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="market-grid" id="market-grid"></div>
+
+    <div class="positions-panel">
+        <h2>持仓</h2>
+        <div id="positions-container">
+            <div class="empty-positions">暂无持仓。选择上面的货币对开始交易。</div>
+        </div>
+    </div>
+
+    <div class="log-panel" id="log-panel"></div>
+
+    <div class="disclaimer">
+        <strong>⚠️ 风险警告：</strong> 这是一个基于《FX战士久留美》的虚构模拟器。所有价格波动由随机算法生成，与真实外汇市场无关。动画原作的核心正是警示：高杠杆和“补仓摊平”可能导致瞬间爆仓。请勿将此模拟器的任何行为用于真实交易。
+    </div>
+</div>
+
+<script>
+(() => {
+    'use strict';
+
+    // ===================== 基础配置 =====================
+    const INITIAL_CAPITAL = 100000; // 100,000 日元
+    const UPDATE_INTERVAL = 1500;   // 毫秒
+    const MAX_TICK_PCT = 0.0015;    // 单次最大波动 0.15%
+    const MEAN_REVERT_STRENGTH = 0.02; // 均值回归强度
+    const LIQUIDATION_THRESHOLD = 0.8; // 亏损吃掉 80% 可用保证金时爆仓
+    const LOT_SIZE = 10000; // 1 手 = 10,000 单位基础货币
+
+    // 基于 2026 年 10 月真实报价的初始汇率
+    // EUR/USD ≈ 1.1237, USD/JPY ≈ 158.20, GBP/USD ≈ 1.3383
+    // USD/CHF ≈ 0.8248, AUD/USD ≈ 0.7082, USD/CAD ≈ 1.4057
+    const PAIRS = [
+        { symbol: 'EUR/USD', base: 'EUR', quote: 'USD', price: 1.1237, pipSize: 0.0001, basePrice: 1.1237 },
+        { symbol: 'USD/JPY', base: 'USD', quote: 'JPY', price: 158.20, pipSize: 0.01, basePrice: 158.20 },
+        { symbol: 'GBP/USD', base: 'GBP', quote: 'USD', price: 1.3383, pipSize: 0.0001, basePrice: 1.3383 },
+        { symbol: 'USD/CHF', base: 'USD', quote: 'CHF', price: 0.8248, pipSize: 0.0001, basePrice: 0.8248 },
+        { symbol: 'AUD/USD', base: 'AUD', quote: 'USD', price: 0.7082, pipSize: 0.0001, basePrice: 0.7082 },
+        { symbol: 'USD/CAD', base: 'USD', quote: 'CAD', price: 1.4057, pipSize: 0.0001, basePrice: 1.4057 }
+    ];
+
+    // ===================== 状态 =====================
+    let balance = INITIAL_CAPITAL;
+    let positions = []; // { id, symbol, side, lots, entryPrice, pair }
+    let nextPositionId = 1;
+    let priceFlash = {}; // symbol -> 'up' | 'down' | null
+
+    const els = {
+        equity: document.getElementById('equity'),
+        freeMargin: document.getElementById('free-margin'),
+        floatingPnl: document.getElementById('floating-pnl'),
+        leverage: document.getElementById('leverage'),
+        marketGrid: document.getElementById('market-grid'),
+        positionsContainer: document.getElementById('positions-container'),
+        logPanel: document.getElementById('log-panel')
+    };
+
+    // ===================== 工具函数 =====================
+    function fmt(num, decimals = 2) {
+        return Number(num).toLocaleString('en-US', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
+        });
+    }
+
+    function pairDecimals(pair) {
+        if (pair.symbol === 'USD/JPY') return 2;
+        if (pair.symbol.startsWith('USD/')) return 4;
+        return 4;
+    }
+
+    function formatPrice(pair, price) {
+        const d = pairDecimals(pair);
+        return price.toFixed(d);
+    }
+
+    function log(message, type = '') {
+        const time = new Date().toLocaleTimeString('ja-JP', { hour12: false });
+        const entry = document.createElement('div');
+        entry.className = `log-entry ${type}`;
+        entry.innerHTML = `<span class="time">${time}</span>${message}`;
+        els.logPanel.prepend(entry);
+        while (els.logPanel.children.length > 80) {
+            els.logPanel.removeChild(els.logPanel.lastChild);
+        }
+    }
+
+    // ===================== 随机波动引擎（简化 GBM + 均值回归） =====================
+    function tickPrices() {
+        PAIRS.forEach(pair => {
+            const prev = pair.price;
+
+            // 标准正态随机数（Box-Muller 变换）
+            const u1 = Math.random() || 1e-10;
+            const u2 = Math.random();
+            const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+
+            // 均值回归拉力：价格偏离基准越远，回归力越强
+            const deviation = (pair.price - pair.basePrice) / pair.basePrice;
+            const reversion = -MEAN_REVERT_STRENGTH * deviation;
+
+            // 单次波动不超过 MAX_TICK_PCT
+            let changePct = z * MAX_TICK_PCT + reversion;
+            changePct = Math.max(-MAX_TICK_PCT, Math.min(MAX_TICK_PCT, changePct));
+
+            pair.price = Math.max(pair.price * (1 + changePct), 0.0001);
+
+            // 记录方向用于闪烁动画
+            if (pair.price > prev) priceFlash[pair.symbol] = 'up';
+            else if (pair.price < prev) priceFlash[pair.symbol] = 'down';
+            else priceFlash[pair.symbol] = null;
+        });
+
+        updateAll();
+    }
+
+    // ===================== 计算引擎 =====================
+    function getLeverage() {
+        return parseFloat(els.leverage.value) || 10;
+    }
+
+    /**
+     * 将“手数”换算为日元名义价值。
+     * 简化假设：
+     *  - 报价货币为 JPY 的货币对（USD/JPY），名义价值 = 价格 × 手数 × LOT_SIZE
+     *  - 其他货币对，使用近似 USD/JPY 汇率折算为日元
+     */
+    function notionalInJPY(pair, lots) {
+        const units = lots * LOT_SIZE; // 基础货币单位
+        const usdjpy = PAIRS.find(p => p.symbol === 'USD/JPY').price;
+
+        if (pair.quote === 'JPY') {
+            return units * pair.price;
+        }
+        if (pair.base === 'USD') {
+            // USD/CHF, USD/CAD：基础货币是 USD
+            return units * usdjpy;
+        }
+        if (pair.quote === 'USD') {
+            // EUR/USD, GBP/USD, AUD/USD：基础货币非 USD，报价是 USD
+            return units * pair.price * usdjpy;
+        }
+        return units * usdjpy; // 兜底
+    }
+
+    function requiredMargin(pair, lots) {
+        return notionalInJPY(pair, lots) / getLeverage();
+    }
+
+    function positionPnl(pos) {
+        const pair = PAIRS.find(p => p.symbol === pos.symbol);
+        const units = pos.lots * LOT_SIZE;
+
+        if (pos.side === 'long') {
+            if (pair.quote === 'JPY') {
+                // USD/JPY 多单： (现价 - 入场价) × 单位数
+                return (pair.price - pos.entryPrice) * units;
+            }
+            if (pair.quote === 'USD') {
+                // EUR/USD 等多单： (现价 - 入场价) × 单位数 × USD/JPY
+                const usdjpy = PAIRS.find(p => p.symbol === 'USD/JPY').price;
+                return (pair.price - pos.entryPrice) * units * usdjpy;
+            }
+            if (pair.base === 'USD') {
+                // USD/CHF 等多单： (现价 - 入场价) / 现价 × 单位数 × USD/JPY
+                const usdjpy = PAIRS.find(p => p.symbol === 'USD/JPY').price;
+                return (pair.price - pos.entryPrice) / pair.price * units * usdjpy;
+            }
+        } else { // short
+            if (pair.quote === 'JPY') {
+                return (pos.entryPrice - pair.price) * units;
+            }
+            if (pair.quote === 'USD') {
+                const usdjpy = PAIRS.find(p => p.symbol === 'USD/JPY').price;
+                return (pos.entryPrice - pair.price) * units * usdjpy;
+            }
+            if (pair.base === 'USD') {
+                const usdjpy = PAIRS.find(p => p.symbol === 'USD/JPY').price;
+                return (pos.entryPrice - pair.price) / pair.price * units * usdjpy;
+            }
+        }
+        return 0;
+    }
+
+    function totalFloatingPnl() {
+        return positions.reduce((sum, pos) => sum + positionPnl(pos), 0);
+    }
+
+    function usedMargin() {
+        return positions.reduce((sum, pos) => sum + requiredMargin(pos.pair, pos.lots), 0);
+    }
+
+    function equity() {
+        return balance + totalFloatingPnl();
+    }
+
+    function freeMargin() {
+        return equity() - usedMargin();
+    }
+
+    // ===================== 交易操作 =====================
+    function openPosition(pair, side) {
+        const lots = 1; // 固定 1 手，简化操作；也可以通过 prompt 让用户输入手数
+        const margin = requiredMargin(pair, lots);
+
+        if (margin > freeMargin()) {
+            log(`保证金不足，无法${side === 'long' ? '做多' : '做空'} ${pair.symbol}。`, 'warn');
+            return;
+        }
+
+        const pos = {
+            id: nextPositionId++,
+            symbol: pair.symbol,
+            side,
+            lots,
+            entryPrice: pair.price,
+            pair // 引用，方便后续取当前价格
+        };
+        positions.push(pos);
+
+        const sideText = side === 'long' ? '做多' : '做空';
+        log(`${sideText} ${pair.symbol} 1手 @ ${formatPrice(pair, pair.price)}`, side);
+        updateAll();
+    }
+
+    function closePosition(posId) {
+        const idx = positions.findIndex(p => p.id === posId);
+        if (idx === -1) return;
+
+        const pos = positions[idx];
+        const pnl = positionPnl(pos);
+        balance += pnl;
+        positions.splice(idx, 1);
+
+        const sign = pnl >= 0 ? '+' : '';
+        log(`平仓 ${pos.symbol} ${pos.side === 'long' ? '多' : '空'} 1手 · 盈亏 ${sign}${fmt(pnl, 0)} JPY`, pnl >= 0 ? 'long' : 'short');
+        updateAll();
+    }
+
+    function checkLiquidation() {
+        if (positions.length === 0) return;
+
+        const equityNow = equity();
+        const used = usedMargin();
+
+        // 爆仓条件：净值低于已用保证金的 20%（即亏损吃掉 80% 可用保证金）
+        if (equityNow <= used * (1 - LIQUIDATION_THRESHOLD) && used > 0) {
+            let totalPnl = 0;
+            positions.forEach(pos => {
+                totalPnl += positionPnl(pos);
+            });
+            balance += totalPnl;
+            positions = [];
+
+            log(`⚠️ 强制平仓！净值跌至 ${fmt(equityNow, 0)} JPY。ナンピン是通往爆仓的捷径。`, 'liquidation');
+            updateAll();
+        }
+    }
+
+    // ===================== 渲染 =====================
+    function renderMarket() {
+        els.marketGrid.innerHTML = PAIRS.map(pair => {
+            const flash = priceFlash[pair.symbol];
+            const priceClass = flash === 'up' ? 'price-up' : flash === 'down' ? 'price-down' : '';
+            const decimals = pairDecimals(pair);
+            const spread = decimals === 2 ? 0.02 : 0.0002; // 近似点差
+
+            return `
+                <div class="pair-card">
+                    <div class="pair-header">
+                        <span class="pair-name">${pair.symbol}</span>
+                        <span class="pair-price ${priceClass}" id="price-${pair.symbol.replace('/', '-')}">
+                            ${formatPrice(pair, pair.price)}
+                        </span>
+                    </div>
+                    <div class="pair-meta">
+                        点差 ≈ ${spread.toFixed(decimals)} · 1手名义价值 ≈ ${fmt(notionalInJPY(pair, 1), 0)} JPY
+                    </div>
+                    <div class="trade-buttons">
+                        <button class="btn-long" data-action="long" data-symbol="${pair.symbol}">
+                            做多 (Buy)
+                        </button>
+                        <button class="btn-short" data-action="short" data-symbol="${pair.symbol}">
+                            做空 (Sell)
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function renderPositions() {
+        if (positions.length === 0) {
+            els.positionsContainer.innerHTML = '<div class="empty-positions">暂无持仓。选择上面的货币对开始交易。</div>';
+            return;
+        }
+
+        let html = `
+            <table>
+                <thead>
+                    <tr>
+                        <th>货币对</th>
+                        <th>方向</th>
+                        <th>手数</th>
+                        <th>入场价</th>
+                        <th>当前价</th>
+                        <th>浮动盈亏 (JPY)</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        positions.forEach(pos => {
+            const pair = pos.pair;
+            const pnl = positionPnl(pos);
+            const pnlClass = pnl >= 0 ? 'positive' : 'negative';
+            const sideText = pos.side === 'long' ? '多' : '空';
+            const sideClass = pos.side === 'long' ? 'price-up' : 'price-down';
+
+            html += `
+                <tr>
+                    <td>${pos.symbol}</td>
+                    <td class="${sideClass}">${sideText}</td>
+                    <td class="num">${pos.lots}</td>
+                    <td class="num">${formatPrice(pair, pos.entryPrice)}</td>
+                    <td class="num">${formatPrice(pair, pair.price)}</td>
+                    <td class="num ${pnlClass}">${pnl >= 0 ? '+' : ''}${fmt(pnl, 0)}</td>
+                    <td><button class="close-btn" data-close="${pos.id}">平仓</button></td>
+                </tr>
+            `;
+        });
+
+        html += '</tbody></table>';
+        els.positionsContainer.innerHTML = html;
+    }
+
+    function renderStatus() {
+        const eq = equity();
+        const fm = freeMargin();
+        const pnl = totalFloatingPnl();
+
+        els.equity.textContent = fmt(eq, 0);
+        els.freeMargin.textContent = fmt(Math.max(fm, 0), 0);
+        els.floatingPnl.textContent = (pnl >= 0 ? '+' : '') + fmt(pnl, 0);
+
+        els.equity.className = 'value ' + (eq >= INITIAL_CAPITAL ? 'positive' : 'negative');
+        els.freeMargin.className = 'value ' + (fm >= 0 ? 'positive' : 'negative');
+        els.floatingPnl.className = 'value ' + (pnl >= 0 ? 'positive' : 'negative');
+    }
+
+    function updateAll() {
+        renderMarket();
+        renderPositions();
+        renderStatus();
+    }
+
+    // ===================== 事件绑定 =====================
+    els.marketGrid.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-action]');
+        if (!btn) return;
+
+        const action = btn.dataset.action;
+        const symbol = btn.dataset.symbol;
+        const pair = PAIRS.find(p => p.symbol === symbol);
+        if (!pair) return;
+
+        openPosition(pair, action);
+    });
+
+    els.positionsContainer.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-close]');
+        if (!btn) return;
+        const posId = parseInt(btn.dataset.close, 10);
+        closePosition(posId);
+    });
+
+    // ===================== 启动 =====================
+    renderMarket();
+    renderStatus();
+    log('模拟器已启动。初始资金 100,000 JPY。价格每 1.5 秒随机波动。', 'warn');
+
+    setInterval(() => {
+        tickPrices();
+        checkLiquidation();
+    }, UPDATE_INTERVAL);
+
+    // 每 10 个 tick 清除一次闪烁状态，让颜色回归平静
+    setInterval(() => {
+        priceFlash = {};
+        updateAll();
+    }, UPDATE_INTERVAL * 4);
+
+})();
+</script>
+</body>
+</html>
